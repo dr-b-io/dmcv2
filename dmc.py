@@ -13,7 +13,8 @@ parser.add_argument('-p','--printer', help='Printer URL or IP address (EX: http:
 parser.add_argument('-v','--verbose', help='Verbose output, useful for troubleshooting',required=False, action='store_true')
 parser.add_argument('-s','--skip', help='Skip first x images of printing proceess (useful to skip bed probing if enabled)', nargs='?', const=1, type=int, default=0)
 parser.add_argument('-t','--timer', help='Sleep timer between testing Z position (default 30 seconds)', nargs='?', const=1, type=int, default=30)
-parser.add_argument('-f','--framerate', help='FFMPEG video creation framerate (default .15 seconds)', nargs='?', const=1, type=str, default=.15)
+parser.add_argument('-f','--framerate', help='ffmpeg video creation framerate (default .15 seconds)', nargs='?', const=1, type=str, default=.15)
+parser.add_argument('-i','--imagecount', help="the number of picutres ffmpeg shoudl take for the snapshot (default 1)",nargs='?', const=1, type=int, default=1)
 # get the arguments
 args = parser.parse_args()
 verbose = args.verbose
@@ -56,8 +57,8 @@ varImageCounter = 0
 varLastPrinterStatus = ''
 varLastZHeight = ''
 varPrintName = ''
-varffmpegCommand = 'ffmpeg -r 1/' + str(varFrameRate) + ' -i image-%015d.jpg -vcodec mpeg4 -y print.mp4'
-varffmpegImageCommand = 'ffmpeg -f video4linux2 -video_size 1920x1080 -i ' +args.camera+ ' -f image2 -frames:v 3 -update 1 -y image-^.jpg'
+varffmpegCommand = 'ffmpeg -r 1/' + str(varFrameRate) + ' -s 1920x1080 -i image-%015d.jpg -vcodec libx264 -crf 25 -pix_fmt yuv420p -y print.mp4'
+varffmpegImageCommand = 'ffmpeg -f video4linux2 -video_size 1920x1080 -i ' +args.camera+ ' -f image2 -frames:v '+str(args.imagecount)+' -update 1 -y image-^.jpg'
 varImageText = varAppName + ' - https://www.dr-b.io'
 
 
@@ -88,11 +89,18 @@ except:
 if(verbose):
  print('Testing printer http availability')
 # test the printer URL to make sure it is accessible
-request = requests.get(varPrinterURL)
-if request.status_code != 200:
+try:
+ request = requests.get(varPrinterURL, timeout=10)
+ if request.status_code == 200:
+  if(verbose):
+   print('Printer online')
+ else:
+  print(varPrinterURL + ' offline, please verify URL and try again') 
+  sys.exit()
+except:
  print(varPrinterURL + ' offline, please verify URL and try again') 
  sys.exit()
-
+ 
 # list out the variables that are defined
 if(verbose):
  print('')
